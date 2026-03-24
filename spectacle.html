@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>redestorting a common spectacle</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      min-height: 100vh;
+      font-family: "Courier New", Courier, monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      cursor: crosshair;
+      overflow-x: hidden;
+      background: #222;
+      text-align: center;
+    }
+
+    /* ── VIDEO BACKGROUND ── */
+    #bg-video {
+      position: fixed;
+      inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      z-index: -1;
+      opacity: 0.85;
+    }
+
+    /* ── TEXT: white with black outline ── */
+    body, body * {
+      color: #fff;
+      text-shadow:
+        -1px -1px 0 #000,
+         1px -1px 0 #000,
+        -1px  1px 0 #000,
+         1px  1px 0 #000;
+    }
+
+    a { color: #fff; text-decoration: underline; }
+    a:hover { text-decoration: none; background: rgba(255,255,255,0.15); }
+
+    /* ── BOOT ── */
+    #boot {
+      position: fixed; inset: 0;
+      background: #000;
+      font-family: "Courier New", monospace;
+      font-size: 13px;
+      padding: 2.5rem;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      text-align: left;
+    }
+    #boot, #boot * {
+      color: #0f0;
+      text-shadow: none;
+    }
+    #boot .line { opacity: 0; white-space: pre; transition: opacity 0.05s; }
+    .cur {
+      display: inline-block;
+      width: 8px; height: 14px;
+      background: #0f0;
+      animation: blink 0.75s step-end infinite;
+      vertical-align: middle;
+    }
+    @keyframes blink { 50% { opacity:0; } }
+    #main { display: none; }
+
+    /* ── LAYOUT ── */
+    .wrap {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 0 24px 60px;
+    }
+
+    /* ── HEADER ── */
+    header {
+      padding: 48px 0 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.3);
+      margin-bottom: 28px;
+    }
+
+    .site-title {
+      font-family: "Brush Script MT", "Brush Script Std", cursive;
+      font-size: clamp(2.2rem, 6vw, 3.8rem);
+      font-weight: normal;
+      line-height: 1.05;
+      letter-spacing: 0.01em;
+      text-shadow:
+        -2px -2px 0 #000,
+         2px -2px 0 #000,
+        -2px  2px 0 #000,
+         2px  2px 0 #000,
+         0    0   8px rgba(0,0,0,0.5);
+    }
+
+    .site-meta {
+      font-size: 11px;
+      margin-top: 10px;
+      opacity: 0.7;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    /* ── NAV ── */
+    nav {
+      margin-bottom: 36px;
+      display: flex;
+      justify-content: center;
+      gap: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+    }
+
+    nav a {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      text-decoration: none;
+      padding: 6px 14px;
+      border-bottom: 2px solid transparent;
+      opacity: 0.6;
+      transition: opacity 0.15s, border-color 0.15s;
+    }
+    nav a:hover, nav a.active {
+      opacity: 1;
+      border-bottom-color: #fff;
+      background: none;
+    }
+
+    /* ── MARQUEE ── */
+    .marquee {
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      opacity: 0.5;
+      overflow: hidden;
+      white-space: nowrap;
+      margin-bottom: 36px;
+    }
+    .marquee-inner {
+      display: inline-block;
+      animation: scroll 35s linear infinite;
+    }
+    @keyframes scroll {
+      from { transform: translateX(100vw); }
+      to   { transform: translateX(-100%); }
+    }
+
+    /* ── SECTION LABEL ── */
+    .section-label {
+      font-family: "Brush Script MT", "Brush Script Std", cursive;
+      font-size: 1.5rem;
+      font-weight: normal;
+      margin-bottom: 16px;
+      opacity: 0.9;
+    }
+
+    /* ── WÜHLTISCH ── */
+    .wuehltisch-wrap { margin-bottom: 52px; }
+
+    .wuehltisch-hint {
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      opacity: 0.45;
+      margin-bottom: 10px;
+    }
+
+    .wuehltisch {
+      position: relative;
+      height: 380px;
+      /* no border, no background — floats on whatever is behind */
+      overflow: hidden;
+    }
+
+    .vcard {
+      position: absolute;
+      width: 230px;
+      cursor: grab;
+      user-select: none;
+      border: 1px solid rgba(255,255,255,0.55);
+      background: rgba(0,0,0,0.6);
+      transition: box-shadow 0.1s;
+      text-align: left;
+    }
+    .vcard:active { cursor: grabbing; }
+    .vcard.dragging {
+      box-shadow: 0 0 0 1px #fff, 4px 4px 0 rgba(0,0,0,0.6);
+    }
+
+    .vcard-bar {
+      padding: 3px 8px;
+      font-size: 10px;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      background: rgba(255,255,255,0.08);
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .video-embed {
+      position: relative;
+      padding-bottom: 56.25%;
+      height: 0;
+      overflow: hidden;
+    }
+    .video-embed iframe {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      border: none;
+    }
+    .vid-placeholder {
+      position: absolute; inset: 0;
+      display: flex; align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 6px;
+      background: rgba(0,0,0,0.7);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      opacity: 0.6;
+    }
+    .vid-placeholder .arrow {
+      font-size: 18px;
+      animation: blink 1.2s step-end infinite;
+    }
+
+    /* ── SOUND ENTRIES ── */
+    .entries {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .entry {
+      padding: 20px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+    }
+
+    .entry-top {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
+    }
+
+    .entry-num {
+      font-size: 10px;
+      opacity: 0.4;
+      min-width: 20px;
+    }
+
+    .entry-title {
+      font-family: "Brush Script MT", "Brush Script Std", cursive;
+      font-size: 1.55rem;
+      font-weight: normal;
+      line-height: 1.1;
+      cursor: crosshair;
+    }
+
+    .entry-type {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      border: 1px solid rgba(255,255,255,0.4);
+      padding: 1px 5px;
+      opacity: 0.7;
+    }
+
+    .entry-info {
+      font-size: 10px;
+      opacity: 0.45;
+      letter-spacing: 0.08em;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+    }
+
+    .entry-desc {
+      font-size: 12px;
+      opacity: 0.75;
+      max-width: 500px;
+      margin: 0 auto 14px;
+      line-height: 1.9;
+    }
+
+    /* ── AUDIO PLAYER ── */
+    .player {
+      display: inline-flex;
+      align-items: stretch;
+      border: 1px solid rgba(255,255,255,0.4);
+      background: rgba(0,0,0,0.4);
+      max-width: 420px;
+      width: 100%;
+      margin-bottom: 10px;
+      text-align: left;
+    }
+
+    .play-btn {
+      background: rgba(255,255,255,0.9);
+      color: #000 !important;
+      text-shadow: none !important;
+      border: none;
+      padding: 0 12px;
+      font-family: "Courier New", monospace;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      cursor: crosshair;
+      flex-shrink: 0;
+      transition: background 0.1s;
+    }
+    .play-btn:hover { background: #fff; }
+
+    .player-inner {
+      padding: 6px 10px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .progress-track {
+      width: 100%; height: 6px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+      cursor: crosshair;
+    }
+    .progress-fill {
+      height: 100%;
+      background: rgba(255,255,255,0.85);
+      width: 0%;
+      pointer-events: none;
+    }
+
+    .player-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 9px;
+      opacity: 0.45;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* ── TAGS ── */
+    .tags {
+      display: flex;
+      justify-content: center;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .tag {
+      font-size: 10px;
+      border: 1px solid rgba(255,255,255,0.25);
+      padding: 1px 7px;
+      opacity: 0.55;
+      cursor: crosshair;
+    }
+    .tag:hover { opacity: 1; background: rgba(255,255,255,0.1); }
+
+    /* ── COUNTER ── */
+    .counter-wrap {
+      margin-top: 48px;
+      font-size: 10px;
+      opacity: 0.35;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+    #counter { letter-spacing: 0.25em; }
+
+    /* ── FOOTER ── */
+    footer {
+      margin-top: 60px;
+      border-top: 1px solid rgba(255,255,255,0.15);
+      padding-top: 12px;
+      font-size: 10px;
+      opacity: 0.4;
+      letter-spacing: 0.1em;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    ══ BACKGROUND VIDEO ══════════════════════════════════════
+    Drop your video file next to index.html and replace
+    "your-background.mp4" with its filename.
+    For a static image instead: remove this <video> tag and add
+        background-image: url('your-image.jpg');
+        background-size: cover;
+    to the body style above.
+    ══════════════════════════════════════════════════════════
+  -->
+  <video id="bg-video" autoplay muted loop playsinline>
+    <source src="your-background.mp4" type="video/mp4">
+  </video>
+
+  <!-- ── BOOT ── -->
+  <div id="boot">
+    <div class="line" id="b0">SYSTEM BOOT ....................................... OK</div>
+    <div class="line" id="b1">checking memory ................................... 640K</div>
+    <div class="line" id="b2">audio device ...................................... found</div>
+    <div class="line" id="b3">video device ...................................... found</div>
+    <div class="line" id="b4"> </div>
+    <div class="line" id="b5">C:\> loading redestorting a common spectacle</div>
+    <div class="line" id="b6"> </div>
+    <div class="line" id="b7">press any key / tap to continue <span class="cur"></span></div>
+  </div>
+
+  <!-- ── MAIN ── -->
+  <div id="main">
+  <div class="wrap">
+
+    <header>
+      <h1 class="site-title">redestorting a common spectacle</h1>
+      <div class="site-meta">sound &amp; moving image &nbsp;·&nbsp; [your name] &nbsp;·&nbsp; [city]</div>
+    </header>
+
+    <nav>
+      <a href="#" class="active">all</a>
+      <a href="#">sound</a>
+      <a href="#">video</a>
+      <a href="#">about</a>
+    </nav>
+
+    <div class="marquee">
+      <span class="marquee-inner">
+        * redestorting a common spectacle * &nbsp;&nbsp;&nbsp;
+        sound / moving image &nbsp;&nbsp;&nbsp;
+        drag the videos &nbsp;&nbsp;&nbsp;
+        * redestorting a common spectacle * &nbsp;&nbsp;&nbsp;
+        this site is best experienced with your ears open &nbsp;&nbsp;&nbsp;
+      </span>
+    </div>
+
+    <!-- WÜHLTISCH -->
+    <div class="wuehltisch-wrap">
+      <div class="section-label">video works</div>
+      <div class="wuehltisch-hint">↔ drag to explore</div>
+      <div class="wuehltisch" id="wuehltisch">
+
+        <div class="vcard" id="vc1" style="left:14px; top:22px;">
+          <div class="vcard-bar"><span>Video One</span><span>[year]</span></div>
+          <div class="video-embed">
+            <div class="vid-placeholder"><span class="arrow">▶</span><span>embed url here</span></div>
+            <!-- <iframe src="https://player.vimeo.com/video/YOUR_ID" allowfullscreen></iframe> -->
+          </div>
+        </div>
+
+        <div class="vcard" id="vc2" style="left:160px; top:70px;">
+          <div class="vcard-bar"><span>Video Two</span><span>[year]</span></div>
+          <div class="video-embed">
+            <div class="vid-placeholder"><span class="arrow">▶</span><span>embed url here</span></div>
+            <!-- <iframe src="https://player.vimeo.com/video/YOUR_ID" allowfullscreen></iframe> -->
+          </div>
+        </div>
+
+        <div class="vcard" id="vc3" style="left:60px; top:195px;">
+          <div class="vcard-bar"><span>Video Three</span><span>[year]</span></div>
+          <div class="video-embed">
+            <div class="vid-placeholder"><span class="arrow">▶</span><span>embed url here</span></div>
+            <!-- <iframe src="https://player.vimeo.com/video/YOUR_ID" allowfullscreen></iframe> -->
+          </div>
+        </div>
+
+        <div class="vcard" id="vc4" style="left:320px; top:30px;">
+          <div class="vcard-bar"><span>Video Four</span><span>[year]</span></div>
+          <div class="video-embed">
+            <div class="vid-placeholder"><span class="arrow">▶</span><span>embed url here</span></div>
+            <!-- <iframe src="https://player.vimeo.com/video/YOUR_ID" allowfullscreen></iframe> -->
+          </div>
+        </div>
+
+        <div class="vcard" id="vc5" style="left:430px; top:170px;">
+          <div class="vcard-bar"><span>Video Five</span><span>[year]</span></div>
+          <div class="video-embed">
+            <div class="vid-placeholder"><span class="arrow">▶</span><span>embed url here</span></div>
+            <!-- <iframe src="https://player.vimeo.com/video/YOUR_ID" allowfullscreen></iframe> -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SOUND ENTRIES -->
+    <div class="section-label">sound works</div>
+    <div class="entries">
+
+      <article class="entry" id="e1">
+        <div class="entry-top">
+          <span class="entry-num">01.</span>
+          <span class="entry-title">Project Title One</span>
+          <span class="entry-type">sound</span>
+        </div>
+        <div class="entry-info">
+          <span>[year]</span><span>12′ 40″</span><span>field recording</span>
+        </div>
+        <p class="entry-desc">
+          Description of the work. Context, process, material — or left empty.
+        </p>
+        <div class="player" id="player-1">
+          <button class="play-btn" onclick="togglePlay('player-1','audio-1')">play</button>
+          <div class="player-inner">
+            <div class="progress-track" onclick="seek(event,'audio-1','fill-1')">
+              <div class="progress-fill" id="fill-1"></div>
+            </div>
+            <div class="player-meta">
+              <span id="time-1">0:00</span>
+              <span>soundscape_01.mp3</span>
+              <span id="dur-1">--:--</span>
+            </div>
+          </div>
+        </div>
+        <audio id="audio-1" src="audio/project-one.mp3"
+          ontimeupdate="updateProgress('audio-1','fill-1','time-1')"
+          onloadedmetadata="setDuration('audio-1','dur-1')"
+          onended="resetPlayer('player-1','fill-1','time-1')"></audio>
+        <div class="tags">
+          <span class="tag">field recording</span>
+          <span class="tag">layering</span>
+        </div>
+      </article>
+
+      <article class="entry" id="e2">
+        <div class="entry-top">
+          <span class="entry-num">02.</span>
+          <span class="entry-title">Project Title Two</span>
+          <span class="entry-type">sound</span>
+        </div>
+        <div class="entry-info">
+          <span>[year]</span><span>18′ 00″</span><span>spatial</span>
+        </div>
+        <p class="entry-desc">Description of the work.</p>
+        <div class="player" id="player-2">
+          <button class="play-btn" onclick="togglePlay('player-2','audio-2')">play</button>
+          <div class="player-inner">
+            <div class="progress-track" onclick="seek(event,'audio-2','fill-2')">
+              <div class="progress-fill" id="fill-2"></div>
+            </div>
+            <div class="player-meta">
+              <span id="time-2">0:00</span>
+              <span>soundscape_02.mp3</span>
+              <span id="dur-2">--:--</span>
+            </div>
+          </div>
+        </div>
+        <audio id="audio-2" src="audio/project-two.mp3"
+          ontimeupdate="updateProgress('audio-2','fill-2','time-2')"
+          onloadedmetadata="setDuration('audio-2','dur-2')"
+          onended="resetPlayer('player-2','fill-2','time-2')"></audio>
+        <div class="tags">
+          <span class="tag">interference</span>
+          <span class="tag">refraction</span>
+        </div>
+      </article>
+
+      <article class="entry" id="e3">
+        <div class="entry-top">
+          <span class="entry-num">03.</span>
+          <span class="entry-title">Project Title Three</span>
+          <span class="entry-type">sound</span>
+        </div>
+        <div class="entry-info">
+          <span>[year]</span><span>20′ 00″</span><span>site-specific</span>
+        </div>
+        <p class="entry-desc">
+          A work existing across sound and image —
+          both present, neither explaining the other.
+        </p>
+        <div class="player" id="player-3">
+          <button class="play-btn" onclick="togglePlay('player-3','audio-3')">play</button>
+          <div class="player-inner">
+            <div class="progress-track" onclick="seek(event,'audio-3','fill-3')">
+              <div class="progress-fill" id="fill-3"></div>
+            </div>
+            <div class="player-meta">
+              <span id="time-3">0:00</span>
+              <span>soundscape_03.mp3</span>
+              <span id="dur-3">--:--</span>
+            </div>
+          </div>
+        </div>
+        <audio id="audio-3" src="audio/project-three.mp3"
+          ontimeupdate="updateProgress('audio-3','fill-3','time-3')"
+          onloadedmetadata="setDuration('audio-3','dur-3')"
+          onended="resetPlayer('player-3','fill-3','time-3')"></audio>
+        <div class="tags">
+          <span class="tag">overlap</span>
+          <span class="tag">site-specific</span>
+        </div>
+      </article>
+
+    </div>
+
+    <div class="counter-wrap">
+      visitors: <span id="counter">000000</span>
+    </div>
+
+    <footer>
+      <span>redestorting a common spectacle — [your name]</span>
+      <span>made with html &nbsp;·&nbsp; <a href="mailto:your@email.com">your@email.com</a></span>
+    </footer>
+
+  </div>
+  </div>
+
+<script>
+  // ── BOOT ──
+  [{id:'b0',d:80},{id:'b1',d:340},{id:'b2',d:600},{id:'b3',d:830},
+   {id:'b4',d:1020},{id:'b5',d:1260},{id:'b6',d:1460},{id:'b7',d:1720}]
+  .forEach(({id,d}) => setTimeout(()=>{
+    const e=document.getElementById(id); if(e) e.style.opacity='1';
+  },d));
+
+  function dismissBoot() {
+    const b=document.getElementById('boot'), m=document.getElementById('main');
+    b.style.transition='opacity 0.3s'; b.style.opacity='0';
+    setTimeout(()=>{ b.style.display='none'; m.style.display='block'; },300);
+  }
+
+  // desktop: keypress or click; mobile: touchstart
+  setTimeout(()=>{
+    document.addEventListener('keydown',   dismissBoot, {once:true});
+    document.addEventListener('click',     dismissBoot, {once:true});
+    document.addEventListener('touchstart',dismissBoot, {once:true, passive:true});
+  }, 2000);
+  setTimeout(dismissBoot, 5500);
+
+  // ── COUNTER ──
+  document.getElementById('counter').textContent =
+    String(4271+Math.floor(Math.random()*99)).padStart(6,'0');
+
+  // ── DRAG ──
+  let zTop=20;
+  document.querySelectorAll('.vcard').forEach(card => {
+    let dragging=false, ox=0, oy=0;
+    const down=(cx,cy)=>{
+      dragging=true; card.style.zIndex=++zTop; card.classList.add('dragging');
+      const r=card.getBoundingClientRect(); ox=cx-r.left; oy=cy-r.top;
+    };
+    const move=(cx,cy)=>{
+      if(!dragging) return;
+      const cr=document.getElementById('wuehltisch').getBoundingClientRect();
+      let x=cx-cr.left-ox, y=cy-cr.top-oy;
+      x=Math.max(0,Math.min(x,cr.width-card.offsetWidth));
+      y=Math.max(0,Math.min(y,cr.height-card.offsetHeight));
+      card.style.left=x+'px'; card.style.top=y+'px';
+    };
+    const up=()=>{ dragging=false; card.classList.remove('dragging'); };
+
+    card.addEventListener('mousedown', e=>{ down(e.clientX,e.clientY); e.preventDefault(); });
+    card.addEventListener('touchstart', e=>{ const t=e.touches[0]; down(t.clientX,t.clientY); },{passive:true});
+    document.addEventListener('mousemove', e=>move(e.clientX,e.clientY));
+    document.addEventListener('touchmove', e=>{ const t=e.touches[0]; move(t.clientX,t.clientY); },{passive:true});
+    document.addEventListener('mouseup', up);
+    document.addEventListener('touchend', up);
+  });
+
+  // ── AUDIO ──
+  function togglePlay(pid,aid){
+    const a=document.getElementById(aid),b=document.querySelector(`#${pid} .play-btn`);
+    document.querySelectorAll('audio').forEach(x=>{
+      if(x.id!==aid&&!x.paused){x.pause();
+        const p=document.querySelector(`#${x.id.replace('audio','player')} .play-btn`);
+        if(p) p.textContent='play';
+      }
+    });
+    if(a.paused){a.play();b.textContent='stop';}
+    else{a.pause();b.textContent='play';}
+  }
+  function updateProgress(aid,fid,tid){
+    const a=document.getElementById(aid),f=document.getElementById(fid),t=document.getElementById(tid);
+    if(a.duration) f.style.width=(a.currentTime/a.duration*100)+'%';
+    t.textContent=`${Math.floor(a.currentTime/60)}:${String(Math.floor(a.currentTime%60)).padStart(2,'0')}`;
+  }
+  function setDuration(aid,did){
+    const a=document.getElementById(aid),d=document.getElementById(did);
+    d.textContent=`${Math.floor(a.duration/60)}:${String(Math.floor(a.duration%60)).padStart(2,'0')}`;
+  }
+  function seek(e,aid,fid){
+    const a=document.getElementById(aid),r=e.currentTarget.getBoundingClientRect();
+    a.currentTime=((e.clientX-r.left)/r.width)*a.duration;
+  }
+  function resetPlayer(pid,fid,tid){
+    const b=document.querySelector(`#${pid} .play-btn`);
+    if(b) b.textContent='play';
+    document.getElementById(fid).style.width='0%';
+    document.getElementById(tid).textContent='0:00';
+  }
+</script>
+</body>
+</html>
